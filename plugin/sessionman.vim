@@ -5,7 +5,7 @@
 "  Copyright (c) Yuri Klubakov
 "
 "  Author:      Yuri Klubakov <yuri.mlists at gmail dot com>
-"  Version:     1.0 (2007-09-02)
+"  Version:     1.01 (2007-09-08)
 "  Requires:    Vim 6
 "  License:     GPL
 "
@@ -13,19 +13,24 @@
 "
 "  Vim provides a ':mksession' command to save the current editing session.
 "  This plug-in helps to work with Vim sessions by keeping them in the
-"  deticated location and by providing commands to save session, list all
+"  dedicated location and by providing commands to save session, list all
 "  sessions, open last session and close session.  From a list of sessions
 "  you can open session and delete session.
 "
-"  Sessions are saved in the "$HOME/sessions" directory or in the
-"  "$VIM/sessions" directory if $HOME is not defined.  If this directory does
-"  not exist, it will be created by the :SaveSession command.
+"  On Windows, DOS and OS2 sessions are saved in:
+"    "$HOME/vimfiles/sessions"   if $HOME is defined
+"    "$APPDATA/Vim/sessions"     if $APPDATA is defined
+"    "$VIM/sessions"             otherwise
+"  On Unix sessions are saved in:
+"    "$HOME/.vim/sessions"
+"  If this directory does not exist, it will be created by the :SaveSession
+"  command (requires Vim 7).
 "
-"  :ListSessions command opens a buffer with session names.
+"  :ListSessions command creates a new window with session names.
 "  Status line shows normal mode mappings:
-"    <ESC> or 'q' - wipe the buffer
+"    <ESC> or 'q'                 - wipe the buffer
 "    <CR> or <2-LeftMouse> or 'o' - open session
-"    'd' - delete session
+"    'd'                          - delete session
 "  The name of an opened session is saved in g:LAST_SESSION variable which is
 "  saved in the viminfo file if 'viminfo' option contains '!'.  It is used to
 "  open last session by :OpenLastSession command.  It can be done when Vim
@@ -42,6 +47,8 @@
 "
 "  :OpenLastSession command opens a g:LAST_SESSION session (see above).
 "
+"  Plug-in also creates a "Sessions" sub-menu under the "File" menu.
+"
 "============================================================================"
 
 if !has('mksession') || exists('loaded_sessionmanager')
@@ -49,30 +56,37 @@ if !has('mksession') || exists('loaded_sessionmanager')
 endif
 let loaded_sessionmanager = 1
 
-let s:save_cpo = &cpo
+let s:cpo_save = &cpo
 set cpo&vim
 
-let s:sessions_path = (($HOME != '') ? $HOME : $VIM) . '/sessions/'
+if has("win32") || has("dos32") || has("dos16") || has("os2")
+	let s:sessions_path = ($HOME != '') ? $HOME . '/vimfiles' : ($APPDATA != '') ? $APPDATA . '/Vim' : $VIM
+	let s:sessions_path = substitute(s:sessions_path, '\\', '/', 'g') . '/sessions'
+else
+	let s:sessions_path = $HOME . '/.vim/sessions'
+endif
 
 "============================================================================"
 
 function! s:OpenSession(name)
-	let g:LAST_SESSION = a:name
 	execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
 	let n = bufnr('%')
-	execute 'silent! so ' . s:sessions_path . a:name
+	execute 'silent! so ' . s:sessions_path . '/' . a:name
 	execute 'silent! bwipeout! ' . n
 	if has('cscope')
 		silent! cscope kill -1
 		silent! cscope add .
 	endif
+	let g:LAST_SESSION = a:name
 endfunction
 
 "============================================================================"
 
 function! s:CloseSession()
 	execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
-	silent! cscope kill -1
+	if has('cscope')
+		silent! cscope kill -1
+	endif
 	unlet! g:LAST_SESSION
 	let v:this_session = ''
 endfunction
@@ -88,7 +102,7 @@ function! s:DeleteSession(name)
 			setlocal modifiable
 			d
 			setlocal nomodifiable
-			if delete(s:sessions_path . name) != 0
+			if delete(s:sessions_path . '/' . name) != 0
 				redraw | echohl ErrorMsg | echo 'Error deleting "' . name . '" session file' | echohl None
 			endif
 		endif
@@ -98,15 +112,9 @@ endfunction
 
 "============================================================================"
 
-function! s:Quit()
-	execute s:b_cur . 'b'
-endfunction
-
-"============================================================================"
-
 function! s:ListSessions()
 	let s:b_cur = winbufnr(0)
-	silent! edit __Sessions__
+	silent! split __Sessions__
 
 	" Mark the buffer as scratch
 	setlocal buftype=nofile
@@ -115,15 +123,15 @@ function! s:ListSessions()
 	setlocal nowrap
 	setlocal nobuflisted
 
-	nnoremap <buffer> <silent> <ESC> :call <SID>Quit()<CR>
-	nnoremap <buffer> <silent> q :call <SID>Quit()<CR>
+	nnoremap <buffer> <silent> <ESC> :bwipeout!<CR>
+	nnoremap <buffer> <silent> q :bwipeout!<CR>
 	nnoremap <buffer> <silent> o :call <SID>OpenSession(getline('.'))<CR>
 	nnoremap <buffer> <silent> <CR> :call <SID>OpenSession(getline('.'))<CR>
 	nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>OpenSession(getline('.'))<CR>
 	nnoremap <buffer> <silent> d :call <SID>DeleteSession(getline('.'))<CR>
 
-	let sessions = substitute(glob(s:sessions_path . '*'), '\\', '/', 'g')
-	let sessions = substitute(sessions, '.\{-}/sessions/\(.\{-}\(\n\|$\)\)', '\1', 'g')
+	let sessions = substitute(glob(s:sessions_path . '/*'), '\\', '/', 'g')
+	let sessions = substitute(sessions, '\(^\|\n\)' . s:sessions_path . '/', '\1', 'g')
 	if sessions == ''
 		redraw | echohl ErrorMsg | echo 'There are no saved sessions' | echohl None
 		return
@@ -141,11 +149,12 @@ function! s:SaveSession()
 	let name = substitute(v:this_session, '.*\(/\|\\\)', '', '')
 	let s = input('Save session as: ', name)
 	if s != ''
-		if finddir('sessions', escape(($HOME != '') ? $HOME : $VIM, ' ')) == ''
-			call mkdir(s:sessions_path)
+		if v:version >= 700 && finddir(s:sessions_path, '/') == ''
+			call mkdir(s:sessions_path, 'p')
 		endif
 		silent! argdel *
-		let v:this_session = s:sessions_path . s
+		let g:LAST_SESSION = s
+		let v:this_session = s:sessions_path . '/' . s
 		execute 'silent mksession! ' . v:this_session
 	endif
 endfunction
@@ -157,6 +166,15 @@ command! -nargs=0 CloseSession call s:CloseSession()
 command! -nargs=0 ListSessions call s:ListSessions()
 command! -nargs=0 SaveSession call s:SaveSession()
 
-let &cpo = s:save_cpo
+"============================================================================"
+
+an 10.370 &File.-SessionsSep-			<Nop>
+an 10.371 &File.S&essions.&Open\.\.\.	:ListSessions<CR>
+an 10.372 &File.S&essions.Open\ &Last	:OpenLastSession<CR>
+an 10.373 &File.S&essions.&Close		:CloseSession<CR>
+an 10.374 &File.S&essions.&Save			:SaveSession<CR>
+
+let &cpo = s:cpo_save
+unlet s:cpo_save
 
 " vim: set ts=4 sw=4 noet :
