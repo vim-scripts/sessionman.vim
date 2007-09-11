@@ -5,7 +5,7 @@
 "  Copyright (c) Yuri Klubakov
 "
 "  Author:      Yuri Klubakov <yuri.mlists at gmail dot com>
-"  Version:     1.01 (2007-09-08)
+"  Version:     1.02 (2007-09-12)
 "  Requires:    Vim 6
 "  License:     GPL
 "
@@ -45,16 +45,23 @@
 "  v:this_session) and saves the current editing session using :mksission
 "  command.
 "
-"  :OpenLastSession command opens a g:LAST_SESSION session (see above).
+"  :OpenLastSession command opens the g:LAST_SESSION session (see above).
 "
-"  Plug-in also creates a "Sessions" sub-menu under the "File" menu.
+"  If 'sessionman_save_on_exit != 0' (default) then the current editing
+"  session will be automatically saved when you exit Vim.
+"
+"  Plug-in creates a "Sessions" sub-menu under the "File" menu.
 "
 "============================================================================"
 
-if !has('mksession') || exists('loaded_sessionmanager')
+if !has('mksession') || exists('loaded_sessionman')
 	finish
 endif
-let loaded_sessionmanager = 1
+let loaded_sessionman = 1
+
+if !exists('sessionman_save_on_exit')
+	let sessionman_save_on_exit = 1
+endif
 
 let s:cpo_save = &cpo
 set cpo&vim
@@ -145,17 +152,18 @@ endfunction
 
 "============================================================================"
 
-function! s:SaveSession()
+function! s:SaveSession(silent)
 	let name = substitute(v:this_session, '.*\(/\|\\\)', '', '')
-	let s = input('Save session as: ', name)
-	if s != ''
+	if !a:silent
+		let name = input('Save session as: ', name)
+	endif
+	if name != ''
 		if v:version >= 700 && finddir(s:sessions_path, '/') == ''
 			call mkdir(s:sessions_path, 'p')
 		endif
 		silent! argdel *
-		let g:LAST_SESSION = s
-		let v:this_session = s:sessions_path . '/' . s
-		execute 'silent mksession! ' . v:this_session
+		let g:LAST_SESSION = name
+		execute 'silent mksession! ' . s:sessions_path . '/' . name
 	endif
 endfunction
 
@@ -164,7 +172,7 @@ endfunction
 command! -nargs=0 OpenLastSession if exists('g:LAST_SESSION') | call s:OpenSession(g:LAST_SESSION) | endif
 command! -nargs=0 CloseSession call s:CloseSession()
 command! -nargs=0 ListSessions call s:ListSessions()
-command! -nargs=0 SaveSession call s:SaveSession()
+command! -nargs=0 SaveSession call s:SaveSession(0)
 
 "============================================================================"
 
@@ -173,6 +181,10 @@ an 10.371 &File.S&essions.&Open\.\.\.	:ListSessions<CR>
 an 10.372 &File.S&essions.Open\ &Last	:OpenLastSession<CR>
 an 10.373 &File.S&essions.&Close		:CloseSession<CR>
 an 10.374 &File.S&essions.&Save			:SaveSession<CR>
+
+aug sessionman
+	au VimLeavePre * if sessionman_save_on_exit | call s:SaveSession(1) | endif
+aug END
 
 let &cpo = s:cpo_save
 unlet s:cpo_save
