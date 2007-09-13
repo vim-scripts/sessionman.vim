@@ -5,7 +5,7 @@
 "  Copyright (c) Yuri Klubakov
 "
 "  Author:      Yuri Klubakov <yuri.mlists at gmail dot com>
-"  Version:     1.02 (2007-09-12)
+"  Version:     1.03 (2007-09-13)
 "  Requires:    Vim 6
 "  License:     GPL
 "
@@ -13,9 +13,11 @@
 "
 "  Vim provides a ':mksession' command to save the current editing session.
 "  This plug-in helps to work with Vim sessions by keeping them in the
-"  dedicated location and by providing commands to save session, list all
-"  sessions, open last session and close session.  From a list of sessions
-"  you can open session and delete session.
+"  dedicated location and by providing commands to list all sessions, open
+"  session, open last session, close session and save session.  From a list
+"  of sessions you can open session and delete session.  Please note that
+"  session name can contain spaces and does not have to have a .vim
+"  extension.
 "
 "  On Windows, DOS and OS2 sessions are saved in:
 "    "$HOME/vimfiles/sessions"   if $HOME is defined
@@ -23,29 +25,35 @@
 "    "$VIM/sessions"             otherwise
 "  On Unix sessions are saved in:
 "    "$HOME/.vim/sessions"
-"  If this directory does not exist, it will be created by the :SaveSession
+"  If this directory does not exist, it will be created by the :SessionSave
 "  command (requires Vim 7).
 "
-"  :ListSessions command creates a new window with session names.
+"  :SessionList command creates a new window with session names.
 "  Status line shows normal mode mappings:
 "    <ESC> or 'q'                 - wipe the buffer
 "    <CR> or <2-LeftMouse> or 'o' - open session
 "    'd'                          - delete session
 "  The name of an opened session is saved in g:LAST_SESSION variable which is
 "  saved in the viminfo file if 'viminfo' option contains '!'.  It is used to
-"  open last session by :OpenLastSession command.  It can be done when Vim
+"  open last session by :SessionOpenLast command.  It can be done when Vim
 "  starts (gvim +bd -c OpenLastSession) or any time during a Vim session.
 "  When session is opened and 'cscope' is enabled, script calls 'cscope add'
 "  for the current directory so make sure it is set correctly for the session.
 "
-"  :CloseSession command wipes out all buffers, kills cscope and clears
+"  :SessionOpen command takes a session name as an argument.  It supports
+"  argument completion.
+"
+"  :SessionOpenLast command opens the g:LAST_SESSION session (see above).
+"
+"  :SessionClose command wipes out all buffers, kills cscope and clears
 "  variables with session name.
 "
-"  :SaveSession command asks for a session name (default is the last part of
-"  v:this_session) and saves the current editing session using :mksission
-"  command.
+"  :SessionSave command saves the current editing session.  If v:this_session
+"  is empty it asks for a session name.
 "
-"  :OpenLastSession command opens the g:LAST_SESSION session (see above).
+"  :SessionSaveAs command takes a session name as an optional argument.  If
+"  there is no argument or it is empty, it asks for a session name (default
+"  is the last part of v:this_session).
 "
 "  If 'sessionman_save_on_exit != 0' (default) then the current editing
 "  session will be automatically saved when you exit Vim.
@@ -152,10 +160,11 @@ endfunction
 
 "============================================================================"
 
-function! s:SaveSession(silent)
-	let name = substitute(v:this_session, '.*\(/\|\\\)', '', '')
-	if !a:silent
-		let name = input('Save session as: ', name)
+function! s:SaveSessionAs(...)
+	if a:0 == 0 || a:1 == ''
+		let name = input('Save session as: ', substitute(v:this_session, '.*\(/\|\\\)', '', ''))
+	else
+		let name = a:1
 	endif
 	if name != ''
 		if v:version >= 700 && finddir(s:sessions_path, '/') == ''
@@ -164,26 +173,43 @@ function! s:SaveSession(silent)
 		silent! argdel *
 		let g:LAST_SESSION = name
 		execute 'silent mksession! ' . s:sessions_path . '/' . name
+		redraw | echo 'Saved session "' . name . '"'
 	endif
 endfunction
 
 "============================================================================"
 
-command! -nargs=0 OpenLastSession if exists('g:LAST_SESSION') | call s:OpenSession(g:LAST_SESSION) | endif
-command! -nargs=0 CloseSession call s:CloseSession()
-command! -nargs=0 ListSessions call s:ListSessions()
-command! -nargs=0 SaveSession call s:SaveSession(0)
+function! s:SaveSession()
+	call s:SaveSessionAs(substitute(v:this_session, '.*\(/\|\\\)', '', ''))
+endfunction
 
 "============================================================================"
 
-an 10.370 &File.-SessionsSep-			<Nop>
-an 10.371 &File.S&essions.&Open\.\.\.	:ListSessions<CR>
-an 10.372 &File.S&essions.Open\ &Last	:OpenLastSession<CR>
-an 10.373 &File.S&essions.&Close		:CloseSession<CR>
-an 10.374 &File.S&essions.&Save			:SaveSession<CR>
+function! s:SessionOpenComplete(A, L, P)
+	let sessions = substitute(glob(s:sessions_path . '/*'), '\\', '/', 'g')
+	return substitute(sessions, '\(^\|\n\)' . s:sessions_path . '/', '\1', 'g')
+endfunction
+
+"============================================================================"
+
+command! -nargs=1 -complete=custom,s:SessionOpenComplete SessionOpen call s:OpenSession(<f-args>)
+command! -nargs=0 SessionOpenLast if exists('g:LAST_SESSION') | call s:OpenSession(g:LAST_SESSION) | endif
+command! -nargs=0 SessionClose call s:CloseSession()
+command! -nargs=0 SessionList call s:ListSessions()
+command! -nargs=0 SessionSave call s:SaveSession()
+command! -nargs=? SessionSaveAs call s:SaveSessionAs(<f-args>)
+
+"============================================================================"
+
+an 10.370 &File.-SessionsSep-				<Nop>
+an 10.371 &File.S&essions.&Open\.\.\.		:SessionList<CR>
+an 10.372 &File.S&essions.Open\ &Last		:SessionOpenLast<CR>
+an 10.373 &File.S&essions.&Close			:SessionClose<CR>
+an 10.374 &File.S&essions.&Save				:SessionSave<CR>
+an 10.374 &File.S&essions.Save\ &As\.\.\.	:SessionSaveAs<CR>
 
 aug sessionman
-	au VimLeavePre * if sessionman_save_on_exit | call s:SaveSession(1) | endif
+	au VimLeavePre * if sessionman_save_on_exit && v:this_session != '' | call s:SaveSession() | endif
 aug END
 
 let &cpo = s:cpo_save
