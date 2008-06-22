@@ -5,7 +5,7 @@
 "  Copyright (c) Yuri Klubakov
 "
 "  Author:      Yuri Klubakov <yuri.mlists at gmail dot com>
-"  Version:     1.03 (2007-09-13)
+"  Version:     1.04 (2008-06-21)
 "  Requires:    Vim 6
 "  License:     GPL
 "
@@ -14,10 +14,10 @@
 "  Vim provides a ':mksession' command to save the current editing session.
 "  This plug-in helps to work with Vim sessions by keeping them in the
 "  dedicated location and by providing commands to list all sessions, open
-"  session, open last session, close session and save session.  From a list
-"  of sessions you can open session and delete session.  Please note that
-"  session name can contain spaces and does not have to have a .vim
-"  extension.
+"  session, open last session, close session, save session and show last
+"  session.  From a list of sessions you can open session, delete session,
+"  edit session and edit extra session script.  Please note that session
+"  name can contain spaces and does not have to have a .vim extension.
 "
 "  On Windows, DOS and OS2 sessions are saved in:
 "    "$HOME/vimfiles/sessions"   if $HOME is defined
@@ -29,14 +29,20 @@
 "  command (requires Vim 7).
 "
 "  :SessionList command creates a new window with session names.
-"  Status line shows normal mode mappings:
-"    <ESC> or 'q'                 - wipe the buffer
-"    <CR> or <2-LeftMouse> or 'o' - open session
-"    'd'                          - delete session
+"  At the top of the window there is a help that shows normal mode mappings:
+"    q, <ESC>                 - close session list
+"    o, <CR>, <2-LeftMouse>   - open session
+"    d                        - delete session
+"    e                        - edit session
+"    x                        - edit extra session script
 "  The name of an opened session is saved in g:LAST_SESSION variable which is
 "  saved in the viminfo file if 'viminfo' option contains '!'.  It is used to
 "  open last session by :SessionOpenLast command.  It can be done when Vim
 "  starts (gvim +bd -c OpenLastSession) or any time during a Vim session.
+"  You can edit an extra session script to specify additional settings and
+"  actions associated with a given session.  If you change values of
+"  'expandtab', 'tabstop' or 'shiftwidth', they will be restored to their
+"  original values when session is closed or before a new session is opened.
 "  When session is opened and 'cscope' is enabled, script calls 'cscope add'
 "  for the current directory so make sure it is set correctly for the session.
 "
@@ -54,6 +60,9 @@
 "  :SessionSaveAs command takes a session name as an optional argument.  If
 "  there is no argument or it is empty, it asks for a session name (default
 "  is the last part of v:this_session).
+"
+"  :SessionShowLast command shows the content of the g:LAST_SESSION and
+"  v:this_session variables.
 "
 "  If 'sessionman_save_on_exit != 0' (default) then the current editing
 "  session will be automatically saved when you exit Vim.
@@ -81,23 +90,39 @@ else
 	let s:sessions_path = $HOME . '/.vim/sessions'
 endif
 
+let s:et_save = &et
+let s:sw_save = &sw
+let s:ts_save = &ts
+
+"============================================================================"
+
+function! s:RestoreDefaults()
+	let &et = s:et_save
+	let &sw = s:sw_save
+	let &ts = s:ts_save
+endfunction
+
 "============================================================================"
 
 function! s:OpenSession(name)
-	execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
-	let n = bufnr('%')
-	execute 'silent! so ' . s:sessions_path . '/' . a:name
-	execute 'silent! bwipeout! ' . n
-	if has('cscope')
-		silent! cscope kill -1
-		silent! cscope add .
+	if a:name != '' && a:name[0] != '"'
+		call s:RestoreDefaults()
+		execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
+		let n = bufnr('%')
+		execute 'silent! so ' . s:sessions_path . '/' . a:name
+		execute 'silent! bwipeout! ' . n
+		if has('cscope')
+			silent! cscope kill -1
+			silent! cscope add .
+		endif
+		let g:LAST_SESSION = a:name
 	endif
-	let g:LAST_SESSION = a:name
 endfunction
 
 "============================================================================"
 
 function! s:CloseSession()
+	call s:RestoreDefaults()
 	execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
 	if has('cscope')
 		silent! cscope kill -1
@@ -109,16 +134,15 @@ endfunction
 "============================================================================"
 
 function! s:DeleteSession(name)
-	let name = getline('.')
-	if name != ''
+	if a:name != '' && a:name[0] != '"'
 		let save_go = &guioptions
 		set guioptions+=c
-		if confirm('Are you sure you want to delete "' . name . '" session?', "&Yes\n&No", 2) == 1
+		if confirm('Are you sure you want to delete "' . a:name . '" session?', "&Yes\n&No", 2) == 1
 			setlocal modifiable
 			d
 			setlocal nomodifiable
-			if delete(s:sessions_path . '/' . name) != 0
-				redraw | echohl ErrorMsg | echo 'Error deleting "' . name . '" session file' | echohl None
+			if delete(s:sessions_path . '/' . a:name) != 0
+				redraw | echohl ErrorMsg | echo 'Error deleting "' . a:name . '" session file' | echohl None
 			endif
 		endif
 		let &guioptions = save_go
@@ -127,9 +151,32 @@ endfunction
 
 "============================================================================"
 
+function! s:EditSession(name)
+	if a:name != '' && a:name[0] != '"'
+		bwipeout!
+		execute 'silent! edit ' . s:sessions_path . '/' . a:name
+		set ft=vim
+	endif
+endfunction
+
+"============================================================================"
+
+function! s:EditSessionExtra(name)
+	if a:name != '' && a:name[0] != '"'
+		bwipeout!
+		execute 'silent! edit ' . s:sessions_path . '/' . a:name . 'x.vim'
+	endif
+endfunction
+
+"============================================================================"
+
 function! s:ListSessions()
-	let s:b_cur = winbufnr(0)
-	silent! split __Sessions__
+	let w_sl = bufwinnr("__SessionList__")
+	if w_sl != -1
+		execute w_sl . 'wincmd w'
+		return
+	endif
+	silent! split __SessionList__
 
 	" Mark the buffer as scratch
 	setlocal buftype=nofile
@@ -144,17 +191,31 @@ function! s:ListSessions()
 	nnoremap <buffer> <silent> <CR> :call <SID>OpenSession(getline('.'))<CR>
 	nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>OpenSession(getline('.'))<CR>
 	nnoremap <buffer> <silent> d :call <SID>DeleteSession(getline('.'))<CR>
+	nnoremap <buffer> <silent> e :call <SID>EditSession(getline('.'))<CR>
+	nnoremap <buffer> <silent> x :call <SID>EditSessionExtra(getline('.'))<CR>
+
+	syn match Comment "^\".*"
+	put ='\"-----------------------------------------------------'
+	put ='\" q, <ESC>                 - close session list'
+	put ='\" o, <CR>, <2-LeftMouse>   - open session'
+	put ='\" d                        - delete session'
+	put ='\" e                        - edit session'
+	put ='\" x                        - edit extra session script'
+	put ='\"-----------------------------------------------------'
+	put =''
+	let l = line(".")
 
 	let sessions = substitute(glob(s:sessions_path . '/*'), '\\', '/', 'g')
-	let sessions = substitute(sessions, '\(^\|\n\)' . s:sessions_path . '/', '\1', 'g')
+	let sessions = substitute(sessions, "\\(^\\|\n\\)" . s:sessions_path . '/', '\1', 'g')
+	let sessions = substitute(sessions, "\n[^\n]\\+x\\.vim\n", '\n', 'g')
 	if sessions == ''
-		redraw | echohl ErrorMsg | echo 'There are no saved sessions' | echohl None
-		return
+		syn match Error "^\" There.*"
+		let sessions = '" There are no saved sessions'
 	endif
+	silent put =sessions
 
-	silent! put =sessions
-	silent! 0,1d
-	redraw | echo "<ESC> or 'q' - close, <CR> or <2-LeftMouse> or 'o' - open, 'd' - delete"
+	0,1d
+	execute l
 	setlocal nomodifiable
 endfunction
 
@@ -185,6 +246,17 @@ endfunction
 
 "============================================================================"
 
+function! s:ShowLastSession()
+	if exists('g:LAST_SESSION')
+		redraw | echo 'Last session is "' . g:LAST_SESSION . '"'
+	else
+		redraw | echo 'Last session is undefined'
+	endif
+	echon ', current session is "' . substitute(v:this_session, '.*\(/\|\\\)', '', '') . '"'
+endfunction
+
+"============================================================================"
+
 function! s:SessionOpenComplete(A, L, P)
 	let sessions = substitute(glob(s:sessions_path . '/*'), '\\', '/', 'g')
 	return substitute(sessions, '\(^\|\n\)' . s:sessions_path . '/', '\1', 'g')
@@ -198,6 +270,7 @@ command! -nargs=0 SessionClose call s:CloseSession()
 command! -nargs=0 SessionList call s:ListSessions()
 command! -nargs=0 SessionSave call s:SaveSession()
 command! -nargs=? SessionSaveAs call s:SaveSessionAs(<f-args>)
+command! -nargs=0 SessionShowLast call s:ShowLastSession()
 
 "============================================================================"
 
