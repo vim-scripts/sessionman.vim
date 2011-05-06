@@ -5,7 +5,7 @@
 "  Copyright (c) Yuri Klubakov
 "
 "  Author:      Yuri Klubakov <yuri.mlists at gmail dot com>
-"  Version:     1.05 (2011-05-05)
+"  Version:     1.06 (2011-05-06)
 "  Requires:    Vim 6
 "  License:     GPL
 "
@@ -119,6 +119,10 @@ function! s:OpenSession(name)
 		finally
 			set eventignore=
 			doautoall BufRead
+			doautoall FileType
+			doautoall BufEnter
+			doautoall BufWinEnter
+			doautoall TabEnter
 			doautoall SessionLoadPost
 		endtry
 		if has('cscope')
@@ -226,6 +230,7 @@ function! s:ListSessions()
 	0,1d
 	execute l
 	setlocal nomodifiable
+	setlocal nospell
 endfunction
 
 "============================================================================"
