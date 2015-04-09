@@ -5,7 +5,7 @@
 "  Copyright (c) Yuri Klubakov
 "
 "  Author:      Yuri Klubakov <yuri.mlists at gmail dot com>
-"  Version:     1.06 (2011-05-06)
+"  Version:     1.07 (2015-04-08)
 "  Requires:    Vim 6
 "  License:     GPL
 "
@@ -112,7 +112,7 @@ function! s:OpenSession(name)
 		endif
 		try
 			set eventignore=all
-			execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
+			execute 'silent! %bwipeout!'
 			let n = bufnr('%')
 			execute 'silent! so ' . s:sessions_path . '/' . a:name
 			execute 'silent! bwipeout! ' . n
@@ -136,7 +136,7 @@ endfunction
 
 function! s:CloseSession()
 	call s:RestoreDefaults()
-	execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
+	execute 'silent! %bwipeout!'
 	if has('cscope')
 		silent! cscope kill -1
 	endif
