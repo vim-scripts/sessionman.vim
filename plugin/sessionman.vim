@@ -112,7 +112,7 @@ function! s:OpenSession(name)
 		endif
 		try
 			set eventignore=all
-			execute 'silent! %bwipeout!'
+			execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
 			let n = bufnr('%')
 			execute 'silent! so ' . s:sessions_path . '/' . a:name
 			execute 'silent! bwipeout! ' . n
@@ -136,7 +136,7 @@ endfunction
 
 function! s:CloseSession()
 	call s:RestoreDefaults()
-	execute 'silent! %bwipeout!'
+	execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
 	if has('cscope')
 		silent! cscope kill -1
 	endif
