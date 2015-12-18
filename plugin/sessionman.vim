@@ -94,6 +94,16 @@ let s:et_save = &et
 let s:sw_save = &sw
 let s:ts_save = &ts
 
+function! s:firstbuf()
+	for b in range(1, bufnr('$'))
+		if buflisted(b)
+			let l:firstbuf = b
+			break
+		endif
+	endfor
+	return l:firstbuf
+endfunction
+
 "============================================================================"
 
 function! s:RestoreDefaults()
@@ -112,7 +122,7 @@ function! s:OpenSession(name)
 		endif
 		try
 			set eventignore=all
-			execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
+			execute 'silent! ' . s:firstbuf() . ',' . bufnr('$') . 'bwipeout!'
 			let n = bufnr('%')
 			execute 'silent! so ' . s:sessions_path . '/' . a:name
 			execute 'silent! bwipeout! ' . n
@@ -136,7 +146,7 @@ endfunction
 
 function! s:CloseSession()
 	call s:RestoreDefaults()
-	execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
+	execute 'silent! ' . s:firstbuf() . ',' . bufnr('$') . 'bwipeout!'
 	if has('cscope')
 		silent! cscope kill -1
 	endif
