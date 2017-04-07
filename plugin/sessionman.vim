@@ -221,6 +221,7 @@ function! s:ListSessions()
 	let sessions = substitute(glob(s:sessions_path . '/*'), '\\', '/', 'g')
 	let sessions = substitute(sessions, "\\(^\\|\n\\)" . s:sessions_path . '/', '\1', 'g')
 	let sessions = substitute(sessions, "\n[^\n]\\+x\\.vim\n", '\n', 'g')
+	let sessions = substitute(sessions, "\n[^\n]\\+x\\.vim", '\n', 'e')
 	if sessions == ''
 		syn match Error "^\" There.*"
 		let sessions = '" There are no saved sessions'
