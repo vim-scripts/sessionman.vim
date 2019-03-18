@@ -123,9 +123,7 @@ function! s:OpenSession(name)
 		try
 			set eventignore=all
 			execute 'silent! ' . s:firstbuf() . ',' . bufnr('$') . 'bwipeout!'
-			let n = bufnr('%')
 			execute 'silent! so ' . s:sessions_path . '/' . a:name
-			execute 'silent! bwipeout! ' . n
 		finally
 			set eventignore=
 			doautoall BufRead
