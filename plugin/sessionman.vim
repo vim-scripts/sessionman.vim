@@ -104,6 +104,12 @@ endfunction
 
 "============================================================================"
 
+function! g:SessionExists(name)
+	let session_path = s:sessions_path . '/' . a:name
+	echom "looking for " . session_path
+	return filereadable(session_path)
+endfunc
+
 function! s:OpenSession(name)
 	if a:name != '' && a:name[0] != '"'
 		call s:RestoreDefaults()
