@@ -226,13 +226,14 @@ function! s:ListSessions()
 	put =''
 	let l = line(".")
 
-	let sessions = substitute(glob(s:sessions_path . '/*'), '\\', '/', 'g')
-	let sessions = substitute(sessions, "\\(^\\|\n\\)" . s:sessions_path . '/', '\1', 'g')
-	let sessions = substitute(sessions, "\n[^\n]\\+x\\.vim\n", '\n', 'g')
-	if sessions == ''
+	let sessions = readdirex(s:sessions_path)
+	if empty(sessions)
 		syn match Error "^\" There.*"
 		let sessions = '" There are no saved sessions'
 	endif
+	let sessions = sessions->sort(
+		\ {x, y -> x['time'] == y['time'] ? 0 : x['time'] < y['time'] ? 1 : -1}
+		\ )->map("v:val['name']")
 	silent put =sessions
 
 	0,1d
