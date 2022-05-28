@@ -67,6 +67,9 @@
 "  If 'sessionman_save_on_exit != 0' (default) then the current editing
 "  session will be automatically saved when you exit Vim.
 "
+"  If 'sessionman_minimal_ui != 0' (efault is 0) then the help that shows
+"  normal mode mappings will not be included in the sessions list
+"
 "  Plug-in creates a "Sessions" sub-menu under the "File" menu.
 "
 "============================================================================"
@@ -78,6 +81,10 @@ let loaded_sessionman = 1
 
 if !exists('sessionman_save_on_exit')
 	let sessionman_save_on_exit = 1
+endif
+
+if !exists('sessionman_minimal_ui')
+	let sessionman_minimal_ui = 0
 endif
 
 let s:cpo_save = &cpo
@@ -215,15 +222,17 @@ function! s:ListSessions()
 	nnoremap <buffer> <silent> e :call <SID>EditSession(getline('.'))<CR>
 	nnoremap <buffer> <silent> x :call <SID>EditSessionExtra(getline('.'))<CR>
 
-	syn match Comment "^\".*"
-	put ='\"-----------------------------------------------------'
-	put ='\" q                        - close session list'
-	put ='\" o, <CR>, <2-LeftMouse>   - open session'
-	put ='\" d                        - delete session'
-	put ='\" e                        - edit session'
-	put ='\" x                        - edit extra session script'
-	put ='\"-----------------------------------------------------'
-	put =''
+	if !g:sessionman_minimal_ui
+		syn match Comment "^\".*"
+		put ='\"-----------------------------------------------------'
+		put ='\" q                        - close session list'
+		put ='\" o, <CR>, <2-LeftMouse>   - open session'
+		put ='\" d                        - delete session'
+		put ='\" e                        - edit session'
+		put ='\" x                        - edit extra session script'
+		put ='\"-----------------------------------------------------'
+		put =''
+	endif
 	let l = line(".")
 
 	let sessions = readdirex(s:sessions_path)
