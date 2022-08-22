@@ -83,6 +83,10 @@ if !exists('sessionman_save_on_exit')
 	let sessionman_save_on_exit = 1
 endif
 
+if !exists('sessionman_save_unloaded')
+	let sessionman_save_unloaded = !&hidden
+endif
+
 if !exists('sessionman_minimal_ui')
 	let sessionman_minimal_ui = 0
 endif
@@ -131,6 +135,11 @@ function! s:OpenSession(name)
 			set eventignore=all
 			execute 'silent! ' . s:firstbuf() . ',' . bufnr('$') . 'bwipeout!'
 			execute 'silent! so ' . s:sessions_path . '/' . a:name
+			if !g:sessionman_save_unloaded
+				let startbuf = bufnr()
+				silent! bufdo call bufload(bufnr())
+				execute 'silent! b' startbuf
+			endif
 		finally
 			set eventignore=
 			doautoall BufRead
@@ -260,6 +269,12 @@ function! s:SaveSessionAs(...)
 		let name = a:1
 	endif
 	if name != ''
+		if !g:sessionman_save_unloaded
+			let unloaded = filter(getbufinfo(), {_, v -> !v.loaded && !v.hidden && v.listed})
+			if !empty(unloaded)
+				execute 'bdelete' join(map(unloaded, {_, v -> v.bufnr}))
+			endif
+		endif
 		if v:version >= 700 && finddir(s:sessions_path, '/') == ''
 			call mkdir(s:sessions_path, 'p')
 		endif
