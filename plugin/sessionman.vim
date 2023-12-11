@@ -72,22 +72,24 @@
 "============================================================================"
 
 if !has('mksession') || exists('loaded_sessionman')
-	finish
+  finish
 endif
 let loaded_sessionman = 1
 
 if !exists('sessionman_save_on_exit')
-	let sessionman_save_on_exit = 1
+  let sessionman_save_on_exit = 1
 endif
 
 let s:cpo_save = &cpo
 set cpo&vim
 
-if has("win32") || has("dos32") || has("dos16") || has("os2")
-	let s:sessions_path = ($HOME != '') ? $HOME . '/vimfiles' : ($APPDATA != '') ? $APPDATA . '/Vim' : $VIM
-	let s:sessions_path = substitute(s:sessions_path, '\\', '/', 'g') . '/sessions'
+if exists('g:sessionman_path')
+  let s:sessions_path = g:sessionman_path
+elseif has("win32") || has("dos32") || has("dos16") || has("os2")
+  let s:sessions_path = ($HOME != '') ? $HOME . '/vimfiles' : ($APPDATA != '') ? $APPDATA . '/Vim' : $VIM
+  let s:sessions_path = substitute(s:sessions_path, '\\', '/', 'g') . '/sessions'
 else
-	let s:sessions_path = $HOME . '/.vim/sessions'
+  let s:sessions_path = $HOME . '/.vim/sessions'
 endif
 
 let s:et_save = &et
@@ -97,9 +99,9 @@ let s:ts_save = &ts
 "============================================================================"
 
 function! s:RestoreDefaults()
-	let &et = s:et_save
-	let &sw = s:sw_save
-	let &ts = s:ts_save
+  let &et = s:et_save
+  let &sw = s:sw_save
+  let &ts = s:ts_save
 endfunction
 
 "============================================================================"
