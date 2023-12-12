@@ -107,180 +107,180 @@ endfunction
 "============================================================================"
 
 function! g:SessionExists(name)
-	let session_path = s:sessions_path . '/' . a:name
-	return filereadable(session_path)
+  let session_path = s:sessions_path . '/' . a:name
+  return filereadable(session_path)
 endfunc
 
 function! s:OpenSession(name)
-	if a:name != '' && a:name[0] != '"'
-		call s:RestoreDefaults()
-		if has('cscope')
-			silent! cscope kill -1
-		endif
-		try
-			set eventignore=all
-			execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
-			let n = bufnr('%')
-			execute 'silent! so ' . s:sessions_path . '/' . a:name
-			execute 'silent! bwipeout! ' . n
-		finally
-			set eventignore=
-			doautoall BufRead
-			doautoall FileType
-			doautoall BufEnter
-			doautoall BufWinEnter
-			doautoall TabEnter
-			doautoall SessionLoadPost
-		endtry
-		if has('cscope')
-			silent! cscope add .
-		endif
-		let g:LAST_SESSION = a:name
-	endif
+  if a:name != '' && a:name[0] != '"'
+    call s:RestoreDefaults()
+    if has('cscope')
+      silent! cscope kill -1
+    endif
+    try
+      set eventignore=all
+      execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
+      let n = bufnr('%')
+      execute 'silent! so ' . s:sessions_path . '/' . a:name
+      execute 'silent! bwipeout! ' . n
+    finally
+      set eventignore=
+      doautoall BufRead
+      doautoall FileType
+      doautoall BufEnter
+      doautoall BufWinEnter
+      doautoall TabEnter
+      doautoall SessionLoadPost
+    endtry
+    if has('cscope')
+      silent! cscope add .
+    endif
+    let g:LAST_SESSION = a:name
+  endif
 endfunction
 
 "============================================================================"
 
 function! s:CloseSession()
-	call s:RestoreDefaults()
-	execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
-	if has('cscope')
-		silent! cscope kill -1
-	endif
-	unlet! g:LAST_SESSION
-	let v:this_session = ''
+  call s:RestoreDefaults()
+  execute 'silent! 1,' . bufnr('$') . 'bwipeout!'
+  if has('cscope')
+    silent! cscope kill -1
+  endif
+  unlet! g:LAST_SESSION
+  let v:this_session = ''
 endfunction
 
 "============================================================================"
 
 function! s:DeleteSession(name)
-	if a:name != '' && a:name[0] != '"'
-		let save_go = &guioptions
-		set guioptions+=c
-		if confirm('Are you sure you want to delete "' . a:name . '" session?', "&Yes\n&No", 2) == 1
-			setlocal modifiable
-			d
-			setlocal nomodifiable
-			if delete(s:sessions_path . '/' . a:name) != 0
-				redraw | echohl ErrorMsg | echo 'Error deleting "' . a:name . '" session file' | echohl None
-			endif
-		endif
-		let &guioptions = save_go
-	endif
+  if a:name != '' && a:name[0] != '"'
+    let save_go = &guioptions
+    set guioptions+=c
+    if confirm('Are you sure you want to delete "' . a:name . '" session?', "&Yes\n&No", 2) == 1
+      setlocal modifiable
+      d
+      setlocal nomodifiable
+      if delete(s:sessions_path . '/' . a:name) != 0
+        redraw | echohl ErrorMsg | echo 'Error deleting "' . a:name . '" session file' | echohl None
+      endif
+    endif
+    let &guioptions = save_go
+  endif
 endfunction
 
 "============================================================================"
 
 function! s:EditSession(name)
-	if a:name != '' && a:name[0] != '"'
-		bwipeout!
-		execute 'silent! edit ' . s:sessions_path . '/' . a:name
-		set ft=vim
-	endif
+  if a:name != '' && a:name[0] != '"'
+    bwipeout!
+    execute 'silent! edit ' . s:sessions_path . '/' . a:name
+    set ft=vim
+  endif
 endfunction
 
 "============================================================================"
 
 function! s:EditSessionExtra(name)
-	if a:name != '' && a:name[0] != '"'
-		bwipeout!
-		let n = substitute(a:name, "\\.[^.]*$", '', '')
-		execute 'silent! edit ' . s:sessions_path . '/' . n . 'x.vim'
-	endif
+  if a:name != '' && a:name[0] != '"'
+    bwipeout!
+    let n = substitute(a:name, "\\.[^.]*$", '', '')
+    execute 'silent! edit ' . s:sessions_path . '/' . n . 'x.vim'
+  endif
 endfunction
 
 "============================================================================"
 
 function! s:ListSessions()
-	let w_sl = bufwinnr("__SessionList__")
-	if w_sl != -1
-		execute w_sl . 'wincmd w'
-		return
-	endif
-	silent! split __SessionList__
+  let w_sl = bufwinnr("__SessionList__")
+  if w_sl != -1
+    execute w_sl . 'wincmd w'
+    return
+  endif
+  silent! split __SessionList__
 
-	" Mark the buffer as scratch
-	setlocal buftype=nofile
-	setlocal bufhidden=wipe
-	setlocal noswapfile
-	setlocal nowrap
-	setlocal nobuflisted
+  " Mark the buffer as scratch
+  setlocal buftype=nofile
+  setlocal bufhidden=wipe
+  setlocal noswapfile
+  setlocal nowrap
+  setlocal nobuflisted
 
-	nnoremap <buffer> <silent> q :bwipeout!<CR>
-	nnoremap <buffer> <silent> o :call <SID>OpenSession(getline('.'))<CR>
-	nnoremap <buffer> <silent> <CR> :call <SID>OpenSession(getline('.'))<CR>
-	nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>OpenSession(getline('.'))<CR>
-	nnoremap <buffer> <silent> d :call <SID>DeleteSession(getline('.'))<CR>
-	nnoremap <buffer> <silent> e :call <SID>EditSession(getline('.'))<CR>
-	nnoremap <buffer> <silent> x :call <SID>EditSessionExtra(getline('.'))<CR>
+  nnoremap <buffer> <silent> q :bwipeout!<CR>
+  nnoremap <buffer> <silent> o :call <SID>OpenSession(getline('.'))<CR>
+  nnoremap <buffer> <silent> <CR> :call <SID>OpenSession(getline('.'))<CR>
+  nnoremap <buffer> <silent> <2-LeftMouse> :call <SID>OpenSession(getline('.'))<CR>
+  nnoremap <buffer> <silent> d :call <SID>DeleteSession(getline('.'))<CR>
+  nnoremap <buffer> <silent> e :call <SID>EditSession(getline('.'))<CR>
+  nnoremap <buffer> <silent> x :call <SID>EditSessionExtra(getline('.'))<CR>
 
-	syn match Comment "^\".*"
-	silent put ='\"-----------------------------------------------------'
-	silent put ='\" q                        - close session list'
-	silent put ='\" o, <CR>, <2-LeftMouse>   - open session'
-	silent put ='\" d                        - delete session'
-	silent put ='\" e                        - edit session'
-	silent put ='\" x                        - edit extra session script'
-	silent put ='\"-----------------------------------------------------'
-	silent put =''
-	let l = line(".")
+  syn match Comment "^\".*"
+  silent put ='\"-----------------------------------------------------'
+  silent put ='\" q                        - close session list'
+  silent put ='\" o, <CR>, <2-LeftMouse>   - open session'
+  silent put ='\" d                        - delete session'
+  silent put ='\" e                        - edit session'
+  silent put ='\" x                        - edit extra session script'
+  silent put ='\"-----------------------------------------------------'
+  silent put =''
+  let l = line(".")
 
-	let sessions = substitute(glob(s:sessions_path . '/*'), '\\', '/', 'ge')
-	let sessions = substitute(sessions, "\\(^\\|\n\\)" . s:sessions_path . '/', '\1', 'ge')
-	let sessions = substitute(sessions, "\n[^\n]\\+x\\.vim\n", '\n', 'ge')
-	if sessions == ''
-		syn match Error "^\" There.*"
-		let sessions = '" There are no saved sessions'
-	endif
-	silent put =sessions
+  let sessions = substitute(glob(s:sessions_path . '/*'), '\\', '/', 'ge')
+  let sessions = substitute(sessions, "\\(^\\|\n\\)" . s:sessions_path . '/', '\1', 'ge')
+  let sessions = substitute(sessions, "\n[^\n]\\+x\\.vim\n", '\n', 'ge')
+  if sessions == ''
+    syn match Error "^\" There.*"
+    let sessions = '" There are no saved sessions'
+  endif
+  silent put =sessions
 
-	0,1d
-	execute l
-	setlocal nomodifiable
-	setlocal nospell
+  0,1d
+  execute l
+  setlocal nomodifiable
+  setlocal nospell
 endfunction
 
 "============================================================================"
 
 function! s:SaveSessionAs(...)
-	if a:0 == 0 || a:1 == ''
-		let name = input('Save session as: ', substitute(v:this_session, '.*\(/\|\\\)', '', ''))
-	else
-		let name = a:1
-	endif
-	if name != ''
-		if v:version >= 700 && finddir(s:sessions_path, '/') == ''
-			call mkdir(s:sessions_path, 'p')
-		endif
-		silent! argdel *
-		let g:LAST_SESSION = name
-		execute 'silent mksession! ' . s:sessions_path . '/' . name
-		redraw | echo 'Saved session "' . name . '"'
-	endif
+  if a:0 == 0 || a:1 == ''
+    let name = input('Save session as: ', substitute(v:this_session, '.*\(/\|\\\)', '', ''))
+  else
+    let name = a:1
+  endif
+  if name != ''
+    if v:version >= 700 && finddir(s:sessions_path, '/') == ''
+      call mkdir(s:sessions_path, 'p')
+    endif
+    silent! argdel *
+    let g:LAST_SESSION = name
+    execute 'silent mksession! ' . s:sessions_path . '/' . name
+    redraw | echo 'Saved session "' . name . '"'
+  endif
 endfunction
 
 "============================================================================"
 
 function! s:SaveSession()
-	call s:SaveSessionAs(substitute(v:this_session, '.*\(/\|\\\)', '', ''))
+  call s:SaveSessionAs(substitute(v:this_session, '.*\(/\|\\\)', '', ''))
 endfunction
 
 "============================================================================"
 
 function! s:ShowLastSession()
-	if exists('g:LAST_SESSION')
-		redraw | echo 'Last session is "' . g:LAST_SESSION . '"'
-	else
-		redraw | echo 'Last session is undefined'
-	endif
-	echon ', current session is "' . substitute(v:this_session, '.*\(/\|\\\)', '', '') . '"'
+  if exists('g:LAST_SESSION')
+    redraw | echo 'Last session is "' . g:LAST_SESSION . '"'
+  else
+    redraw | echo 'Last session is undefined'
+  endif
+  echon ', current session is "' . substitute(v:this_session, '.*\(/\|\\\)', '', '') . '"'
 endfunction
 
 "============================================================================"
 
 function! s:SessionOpenComplete(A, L, P)
-	let sessions = substitute(glob(s:sessions_path . '/*'), '\\', '/', 'g')
-	return substitute(sessions, '\(^\|\n\)' . s:sessions_path . '/', '\1', 'g')
+  let sessions = substitute(glob(s:sessions_path . '/*'), '\\', '/', 'g')
+  return substitute(sessions, '\(^\|\n\)' . s:sessions_path . '/', '\1', 'g')
 endfunction
 
 "============================================================================"
@@ -295,18 +295,16 @@ command! -nargs=0 SessionShowLast call s:ShowLastSession()
 
 "============================================================================"
 
-an 10.370 &File.-SessionsSep-				<Nop>
-an 10.371 &File.S&essions.&Open\.\.\.		:SessionList<CR>
-an 10.372 &File.S&essions.Open\ &Last		:SessionOpenLast<CR>
-an 10.373 &File.S&essions.&Close			:SessionClose<CR>
-an 10.374 &File.S&essions.&Save				:SessionSave<CR>
-an 10.375 &File.S&essions.Save\ &As\.\.\.	:SessionSaveAs<CR>
+an 10.370 &File.-SessionsSep-        <Nop>
+an 10.371 &File.S&essions.&Open\.\.\.    :SessionList<CR>
+an 10.372 &File.S&essions.Open\ &Last    :SessionOpenLast<CR>
+an 10.373 &File.S&essions.&Close      :SessionClose<CR>
+an 10.374 &File.S&essions.&Save        :SessionSave<CR>
+an 10.375 &File.S&essions.Save\ &As\.\.\.  :SessionSaveAs<CR>
 
 aug sessionman
-	au VimLeavePre * if sessionman_save_on_exit && v:this_session != '' | call s:SaveSession() | endif
+  au VimLeavePre * if sessionman_save_on_exit && v:this_session != '' | call s:SaveSession() | endif
 aug END
 
 let &cpo = s:cpo_save
 unlet s:cpo_save
-
-" vim: set ts=4 sw=4 noet :
